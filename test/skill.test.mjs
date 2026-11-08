@@ -81,6 +81,32 @@ test('写操作直接由 Agentic Wallet 调用真实合约，不跳转网页确�
   assert.doesNotMatch(`${skill}\n${workflows}`, /在网页确认交易|通过网页确认交易|网页写操作|引导网页操作|网页销毁|点击“签到上香”|打开 `https:\/\/youqiu\.xyz\/#/);
 });
 
+test('安装器要求的 Node 版本与 package engines 一致', () => {
+  const pkg = JSON.parse(read('package.json'));
+  assert.equal(pkg.engines.node, '>=22.20.0');
+  assert.match(read('README.md'), /Node\.js 22\.20\.0/);
+});
+
+test('晨钟使用北京时间 00:00 日界和 nextOpenAt，不错误等待到 08:00', () => {
+  const content = `${read('skills/biying/references/contracts.md')}\n${read('skills/biying/references/workflows.md')}`;
+  assert.match(content, /nextOpenAt/);
+  assert.match(content, /北京时间 00:00/);
+  assert.doesNotMatch(content, /08:00/);
+});
+
+test('Skill 不把尚未实现的 NFT 双倍权益描述为已生效', () => {
+  const content = `${read('skills/biying/SKILL.md')}\n${read('skills/biying/references/workflows.md')}`;
+  assert.match(content, /不得宣称双倍权益/);
+  assert.doesNotMatch(content, /持有官方指定 NFT.*视为 Binance Agentic Wallet/);
+});
+
+test('Skill 不把卦象 UUID 描述成服务端访问控制凭证', () => {
+  const workflows = read('skills/biying/references/workflows.md');
+  assert.match(workflows, /UUID/);
+  assert.match(workflows, /匿名/);
+  assert.doesNotMatch(workflows, /占卜详情只允许本人登录后查看/);
+});
+
 test('没有安装 MCP 时仍可使用只读 REST 降级路径', () => {
   const workflows = read('skills/biying/references/workflows.md');
   assert.match(workflows, /MCP 不可用/);

@@ -98,7 +98,7 @@ if (receipt.status !== 'success') throw new Error('交易已回滚，业务未�
 
 - 捐 BNB：调用 `RevenueHub.donate()`，`value` 是用户确认的 BNB wei。BNB 全额转入平台金库并记功德，不是投资或保本理财。
 - 销毁 LING：先授权 `MeritBoard`，再调用 `burnForMerit(amount)`；销毁不可找回。
-- 晨钟：先查 `GET /v1/bell`，按产品规则在北京时间 08:00 后且今日未敲时调用 `MeritPool.ring()`。全平台每天仅成功一次，不是每个地址一次；奖励以 `Rung` 事件和实际回执为准。
+- 晨钟：先查 `GET /v1/bell`，以 `rungToday`、`serverTime` 和 `nextOpenAt` 判断状态。每日北京时间 00:00 换日，今日未敲时可调用 `MeritPool.ring()`；若今日已敲，`nextOpenAt` 是次日北京时间 00:00 的开放时间。全平台每天仅成功一次，不是每个地址一次；奖励以 `Rung` 事件和实际回执为准。
 - 领取：先读取 `MeritPool.pending(address)`，大于 0 才调用 `claim()`。它只领取升级前遗留的 pending；新版敲钟直接转账，不保证每次都有可领取金额。
 
 ## 6. 请佛像、开光与封面

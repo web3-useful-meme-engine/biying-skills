@@ -24,7 +24,7 @@ description: Use when a Binance Agentic Wallet user asks about 有求必应, 必
 
 1. 当前 MCP 的 `ask_gua`、`read_fortune`、`lucky_hours`、`merit_board` 均为**只读**。它们本身不能完成钱包登录或链上写操作，但这不妨碍 Agentic Wallet 直接调用合约。
 2. 工具返回 `action_required` 时表示还需执行相应步骤，不表示失败或已经完成；需要链上写操作时读取合约参考，不引导网页确认。
-3. 持有官方指定 NFT 的地址视为 Binance Agentic Wallet；NFT 只用于身份与权益识别，不能替代签名。NFT 地址由服务端配置，不得猜测或硬编码。
+3. Binance NFT 身份和双倍额度必须由服务端识别并明确返回，不能替代钱包签名。不得猜测或硬编码 NFT 地址；服务端未明确返回该权益时，不得宣称双倍权益或自行增加额度。
 4. 不得索取、接收、生成或保存用户私钥、助记词、钱包恢复码。所有签名必须通过用户钱包完成。
 5. 每次交易前说明网络、目标合约、方法、关键参数、资产、数量、是否授权及是否永久销毁。先模拟并取得用户确认，再由 Agentic Wallet 请求签名。
 6. LING 默认只授权本次精确金额；授权与业务交易分别确认。授权成功不等于业务成功。

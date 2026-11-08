@@ -4,6 +4,8 @@
 
 ## 安装
 
+需要 Node.js 22.20.0 或更高版本（`skills` 安装器要求）。
+
 ```bash
 npx skills add web3-useful-meme-engine/biying-skills -g
 ```
