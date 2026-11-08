@@ -44,7 +44,7 @@ Skill 安装本身不会自动安装 MCP。若宿主没有上述工具但支持 
 
 深度卦与再问的直接调用流程：
 
-1. `POST /v1/ask/prepare`，JSON 包含 `question`、`target`、`period`、`topic`、`mode`、`reask`、`wallet`。深度卦使用 `mode: "liuyao"`；梅花再问使用 `mode: "meihua", reask: true`。
+1. `POST /v1/ask/prepare`，JSON 包含 `question`、`target`、`period`、`topic`、`mode`、`reask`、`wallet`。深度卦使用 `mode: "liuyao"`；梅花再问使用 `mode: "meihua", reask: true`。`buy` / `sell` / `launch` 的 `target` 必填；`other` 选择 `topic: "wealth" / "market"` 时 `target` 也必填，只有不带 `topic` 的 `other` 才可留空。不得使用零地址，不知道目标时先向用户确认。
 2. 若返回 `alreadyAsked` / `existing`，先展示已有卦并询问是否付费再问，不直接销毁 LING。正常 prepare 返回 `id`、`ref`、`kind`、`amount`、`contract`。
 3. 核对 `contract` 与 `/v1/config` 的 `MeritBoard` 一致，按 `amount` 精确授权 LING，再调用 `MeritBoard.consume(kind, amount, ref)`。不要自行生成或替换 `ref`。
 4. 等成功回执后，`POST /v1/ask/<id>/tx`，JSON 为 `{ "txHash": "<交易哈希>" }`；已有 SIWE JWT 时同时带 Bearer token。授权成功不等于问卦成功。
@@ -81,7 +81,7 @@ Skill 安装本身不会自动安装 MCP。若宿主没有上述工具但支持 
 
 1. 可用 `lucky_hours` 查询吉时，向用户收集真实名称、符号、Logo、描述、防狙击、买卖税率、税费分配、Royalty 地址与可选预购，不编造资料。
 2. 如有本地 Logo，经用户同意后通过 `POST /v1/launch/image` 上传，JSON 为 `filename` 和 `dataBase64`，取得 `imgUrl`。
-3. `POST /v1/launch/prepare`，主要字段为 `address`、`mode`、`slotStart`、`name`、`symbol`、`desc`、`imgUrl`、`label`、`webUrl`、`twitterUrl`、`telegramUrl`、`antiSniper`、`royaltyAddress`、`buyTax`、`sellTax`、`alloc`、`minSharing`、`preBuyBnb`。字段约束以服务端校验为准。
+3. `POST /v1/launch/prepare`，主要字段为 `address`、`mode`、`slotStart`、`name`、`symbol`、`desc`、`imgUrl`、`label`、`webUrl`、`twitterUrl`、`telegramUrl`、`antiSniper`、`royaltyAddress`、`buyTax`、`sellTax`、`alloc`、`minSharing`、`preBuyBnb`。`buyTax` 与 `sellTax` 只能选 `1% / 3% / 5% / 10%` 且买卖税率必须相同；`alloc` 必须是 `{ "recipient": number, "divide": number, "burn": number, "liquidity": number }`，四项均为 0–100 的整数且四项之和为 100%。`minSharing` 是 `d×10ⁿ`（`d=1–9`、`n≥5`）的代币数量字符串，例如 `"100000"`。
 4. 使用 prepare 原样返回的 `router`、`launchAt`、`nameSymbolHash`、`metaHash`、`preBuy`、`value`，由 Agentic Wallet 调用 `LaunchRouter.reserve(...)`。预约支付平台服务费；可选预购最多 1 BNB，必须单独提示真实买币的价格与滑点风险。
 5. 预约每个时辰限 20 个，先到先得并获得吉时认证；立即发射使用当前时辰名额但无吉时认证，凶时不可预约。
 6. 预约成功回执只表示已预约，不表示代币已创建或预购已交付。通过 `GET /v1/launches?scope=mine&address=<地址>` 跟踪状态。

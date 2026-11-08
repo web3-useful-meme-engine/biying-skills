@@ -114,3 +114,30 @@ test('没有安装 MCP 时仍可使用只读 REST 降级路径', () => {
     assert.ok(workflows.includes(endpoint), `缺少降级接口：${endpoint}`);
   }
 });
+
+test('发射引导包含服务端实际校验的税率与四项分配结构', () => {
+  const workflows = read('skills/biying/references/workflows.md');
+  for (const field of ['recipient', 'divide', 'burn', 'liquidity']) {
+    assert.match(workflows, new RegExp(`alloc[\\s\\S]*${field}`), `alloc 缺少 ${field}`);
+  }
+  assert.match(workflows, /四项.*100|100.*四项/);
+  assert.match(workflows, /buyTax.*sellTax.*相同|买卖.*税率.*相同/);
+  assert.match(workflows, /1%.*3%.*5%.*10%/);
+  assert.match(workflows, /minSharing/);
+});
+
+test('付费问卦引导准确说明 target 的条件必填规则', () => {
+  const workflows = read('skills/biying/references/workflows.md');
+  assert.match(workflows, /buy.*sell.*launch.*target.*必填|target.*buy.*sell.*launch.*必填/);
+  assert.match(workflows, /other.*topic.*target.*必填|topic.*other.*target.*必填/);
+  assert.match(workflows, /不得.*零地址|不要.*零地址/);
+});
+
+test('功德操作在签名前预检最小功德，避免小额交易模拟回滚', () => {
+  const contracts = read('skills/biying/references/contracts.md');
+  assert.match(contracts, /previewLingMerit/);
+  assert.match(contracts, /MeritTooSmall/);
+  assert.match(contracts, /meritPerBnb/);
+  assert.match(contracts, /1e18/);
+  assert.doesNotMatch(contracts, /burnForMerit[^\n]*minAmount\(4\)/);
+});

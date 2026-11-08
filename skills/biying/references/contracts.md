@@ -96,8 +96,8 @@ if (receipt.status !== 'success') throw new Error('交易已回滚，业务未�
 
 ## 5. 功德与晨钟
 
-- 捐 BNB：调用 `RevenueHub.donate()`，`value` 是用户确认的 BNB wei。BNB 全额转入平台金库并记功德，不是投资或保本理财。
-- 销毁 LING：先授权 `MeritBoard`，再调用 `burnForMerit(amount)`；销毁不可找回。
+- 捐 BNB：调用 `RevenueHub.donate()`，`value` 是用户确认的 BNB wei。先读取 `/v1/config` 的 `params.meritPerBnb`，按 `valueWei × meritPerBnb ≥ 1e18` 预检，确保至少产生 1 点功德，否则合约以 `MeritTooSmall` 回滚。BNB 全额转入平台金库并记功德，不是投资或保本理财。
+- 销毁 LING：先授权 `MeritBoard`，再调用 `burnForMerit(amount)`。发送前读取 `MeritBoard.previewLingMerit(amount)`，结果必须大于 0，否则会以 `MeritTooSmall` 回滚；不要使用已下线业务的 `minAmount` 代替这个预检。销毁不可找回，最终以 `simulateContract` 为准。
 - 晨钟：先查 `GET /v1/bell`，以 `rungToday`、`serverTime` 和 `nextOpenAt` 判断状态。每日北京时间 00:00 换日，今日未敲时可调用 `MeritPool.ring()`；若今日已敲，`nextOpenAt` 是次日北京时间 00:00 的开放时间。全平台每天仅成功一次，不是每个地址一次；奖励以 `Rung` 事件和实际回执为准。
 - 领取：先读取 `MeritPool.pending(address)`，大于 0 才调用 `claim()`。它只领取升级前遗留的 pending；新版敲钟直接转账，不保证每次都有可领取金额。
 
