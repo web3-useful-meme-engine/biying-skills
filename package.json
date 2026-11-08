@@ -1,0 +1,14 @@
+{
+  "name": "biying-skills",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Binance Agentic Wallet skill for Biying",
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/*.test.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT"
+}
