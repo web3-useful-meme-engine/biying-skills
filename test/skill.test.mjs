@@ -46,7 +46,7 @@ test('Skill 准确区分动态费用、链下封面和全平台晨钟', () => {
   assert.match(workflows, /改绑本命佛[^\n]*30 天/);
   assert.match(workflows, /设置封面[^\n]*(链下|不发送交易)/);
   assert.match(workflows, /晨钟[^\n]*全平台/);
-  assert.match(workflows, /签到只完成签到，不同时完成清香/);
+  assert.match(workflows, /签到只给基础签到功德.*加成改随清香发放/);
 });
 
 test('写操作直接由 Agentic Wallet 调用真实合约，不跳转网页确认', () => {
@@ -58,8 +58,8 @@ test('写操作直接由 Agentic Wallet 调用真实合约，不跳转网页确�
     assert.ok(content.includes(term), `缺少 Agent Wallet 交易步骤：${term}`);
   }
   for (const signature of [
-    'checkIn(uint256[] tokenIds)',
-    'freeIncense(uint8 buddhaId)',
+    'checkIn()',
+    'freeIncense(uint8 buddhaId,uint256[] tokenIds)',
     'consume(uint8 kind, uint256 amount, bytes32 ref)',
     'burnForMerit(uint256 amount)',
     'donate()',

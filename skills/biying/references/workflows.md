@@ -7,8 +7,8 @@
 ## 每日推荐顺序
 
 1. 获取用户地址，读取 `/v1/config`，再请求 `GET /v1/worship?address=<地址>` 查看 `me.checkedInToday`、`me.incensedToday`、本命佛和 NFT。
-2. 未签到时调用 `MeritBoard.checkIn(tokenIds)`。签到只完成签到，不同时完成清香；传入本人已开光佛像 tokenId，最多 20 个，无佛像传空数组。
-3. 未上清香时调用 `MeritBoard.freeIncense(me.buddhaId)`。清香每日一次，不收清香费，但需要 BNB Gas。
+2. 未签到时调用 `MeritBoard.checkIn()`（无参数）。签到只给基础签到功德；已开光佛像的每日加成改随清香发放。
+3. 未上清香时调用 `MeritBoard.freeIncense(me.buddhaId, tokenIds)`，tokenIds 为本人已开光佛像 tokenId（最多 20 个，无佛像传空数组）。清香每日一次，不收清香费，但需要 BNB Gas；佛像每日加成随清香一并结算，同材质档位多尊每日只计一尊。
 4. 用户明确要求高香时，按合约参考精确授权 LING，再调用 `consume(3, amount, ref)`；不要把高香混入默认免费流程。
 5. 用 `merit_board` 查看功德池、个人排名与晨钟状态。每尊佛每天第一炉为头香，上香者功德加倍。
 
@@ -70,7 +70,7 @@ Skill 安装本身不会自动安装 MCP。若宿主没有上述工具但支持 
 
 “拜佛”不是单一交易名称；先问清用户要清香、高香、请佛像、开光、改绑还是设置封面，不擅自选择付费项目。
 
-- **清香**：`freeIncense(buddhaId)`，每日一次，免费但仍需 Gas，只能供当前本命佛。
+- **清香**：`freeIncense(buddhaId, tokenIds)`，每日一次，免费但仍需 Gas，只能供当前本命佛；随清香一并结算佛像每日加成。
 - **高香**：`consume(3, amount, ref)`，每尊佛每日三支，每支销毁指定数量 LING；逐支确认。
 - **请佛像**：实时读取档位价格后精确授权 `BuddhaNFT`，再调用 `mint(t)`；所付 LING 全部销毁，每档限量且每地址每档限一尊。
 - **开光**：精确授权 `MeritBoard` 后调用 `consecrate(tokenId, amount)`；销毁 LING，完成后佛像提供每日功德加成。
