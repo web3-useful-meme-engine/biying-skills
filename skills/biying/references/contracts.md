@@ -50,7 +50,7 @@ if (receipt.status !== 'success') throw new Error('交易已回滚，业务未�
 | 功能 | 目标合约 | 方法与参数 | `value` |
 |---|---|---|---|
 | 每日签到 | `contracts.MeritBoard` | `checkIn()` | `0` |
-| 领取额外佛像加成 | `contracts.MeritBoard` | `claimNftBonus(uint256[] tokenIds)` | `0` |
+| 高香（含佛像加成） | `contracts.MeritBoard` | `highIncense(uint8 buddhaId, uint256 amount, uint256[] tokenIds)` | `0` |
 | 免费清香 | `contracts.MeritBoard` | `freeIncense(uint8 buddhaId,uint256[] tokenIds)` | `0` |
 | 高香、付费问卦、再问、完整合盘 | `contracts.MeritBoard` | `consume(uint8 kind, uint256 amount, bytes32 ref)` | `0` |
 | 销毁 LING 得功德 | `contracts.MeritBoard` | `burnForMerit(uint256 amount)` | `0` |
@@ -73,7 +73,7 @@ if (receipt.status !== 'success') throw new Error('交易已回滚，业务未�
 1. `GET /v1/worship?address=<用户地址>` 读取 `me.checkedInToday` 与 `me.nfts`。
 2. 已签到则不发送交易。未签到时，从本人 `nfts` 中筛选 `consecrated === true` 的 `token_id`，转为 `bigint`，最多取 20 个。
 3. 调用 `MeritBoard.checkIn()`（无参数）。签到只给基础签到功德，不会自动执行清香。
-4. 超过 20 尊且当天已上清香，可对剩余本人已开光佛像另行调用 `claimNftBonus(tokenIds)`；同材质档位多尊每日只计一尊，不要重复提交当天已结算的 tokenId。
+4. 佛像加成随每一炉香结算（清香与每支高香各计一次）：把用户本人已开光佛像的 tokenId 列表传入 `freeIncense` / `highIncense` 的 `tokenIds`；同一炉内同材质档位多尊只计一尊，单炉最多 20 尊。
 
 可用 `GET /v1/today?address=<地址>` 或链上 `lastCheckIn(address)` 复核。`lastCheckIn` 存的是北京时间 `dayId + 1`，不要把它直接当日期展示。
 
@@ -88,7 +88,7 @@ if (receipt.status !== 'success') throw new Error('交易已回滚，业务未�
 1. 读取 `me.buddhaId` 和 `me.highLeft[buddhaId]`，剩余为 0 则不发送。
 2. `kind = 3`，`amount = minAmount(3)`。
 3. `ref` 必须是 32 字节且最低 8 位为佛编号。viem 可用 `toHex(buddhaId, { size: 32 })` 生成；不要拿问题文本哈希替代。
-4. 先精确授权 `MeritBoard`，再调用 `MeritBoard.consume(3, amount, ref)`。每支单独确认，每地址每尊佛每日最多 3 支。
+4. 先精确授权 `MeritBoard`，再调用 `MeritBoard.highIncense(buddhaId, amount, tokenIds)`（`consume` 已不接受高香 kind 3）。每支单独确认，每地址每尊佛每日最多 3 支，每支都结算佛像加成。
 
 ### 改绑本命佛
 
