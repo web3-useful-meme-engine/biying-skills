@@ -64,7 +64,7 @@ if (receipt.status !== 'success') throw new Error('交易已回滚，业务未�
 | 开始前取消发射 | `contracts.LaunchRouter` | `cancel(uint256 id)` | `0` |
 | 标记已过期预约 | `contracts.LaunchRouter` | `refundExpired(uint256 id)` | `0` |
 
-`consumeFrom`、`recordDonation`、`addRingerMerit`、`complete`、`markRefunded`、金库提现和 owner 管理方法不是普通用户入口，不得引导调用。
+`recordDonation`、`addRingerMerit`、`complete`、`markRefunded`、金库提现和 owner 管理方法不是普通用户入口，不得引导调用。
 
 ## 4. 签到与上香
 

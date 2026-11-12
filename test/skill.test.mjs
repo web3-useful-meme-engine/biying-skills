@@ -24,8 +24,8 @@ test('Skill 覆盖登录、日常操作、问卦测命及全部产品功能', ()
   for (const term of ['Binance Agentic Wallet', '钱包登录', '签到', '清香', '高香', '拜佛', '算卦', '测一测', '吉时', '功德', '晨钟', '佛像', '开光', '吉时发射', '占卜记录']) {
     assert.ok(`${skill}\n${workflows}`.includes(term), `缺少功能：${term}`);
   }
-  for (const tool of ['ask_gua', 'read_fortune', 'lucky_hours', 'merit_board']) {
-    assert.ok(skill.includes(tool), `缺少 MCP 工具：${tool}`);
+  for (const cmd of ['youqiu.mjs', 'login', 'read', 'ask', 'hours', 'board', 'me', 'config']) {
+    assert.ok(`${skill}\n${workflows}`.includes(cmd), `缺少脚本命令：${cmd}`);
   }
 });
 
@@ -87,6 +87,47 @@ test('安装器要求的 Node 版本与 package engines 一致', () => {
   assert.match(read('README.md'), /Node\.js 22\.20\.0/);
 });
 
+test('脚本提供 CLI、依赖可自动安装且不含硬编码密钥', async () => {
+  const scriptPath = 'skills/biying/scripts/youqiu.mjs';
+  assert.ok(existsSync(new URL(scriptPath, root)), `${scriptPath} 不存在`);
+  const script = read(scriptPath);
+  for (const cmd of ['config', 'login', 'loginMessage', 'read', 'ask', 'hours', 'board', 'me', 'logout']) {
+    assert.ok(script.includes(`  ${cmd}(`) || script.includes(`async ${cmd}(`) || script.includes(`  async ${cmd}()`), `缺少命令实现：${cmd}`);
+  }
+  assert.match(script, /YOUQIU_API/);
+  assert.match(script, /BIYING_HOME/);
+  assert.match(script, /npm/, '应支持依赖自动安装');
+  assert.match(script, /AUTH_REQUIRED/, '未登录应返回明确错误码');
+  assert.match(script, /status === 401/, '应处理 401 自动重登');
+  assert.match(script, /202/, '应处理 202 pending');
+  assert.doesNotMatch(script, /0x[a-fA-F0-9]{64}/, '脚本不得内置私钥');
+});
+
+test('脚本签名与 viem/钱包结果一致（确定性向量）', async () => {
+  const mod = await import('../skills/biying/scripts/youqiu.mjs');
+  const { mkdtempSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const { join } = await import('node:path');
+  const home = mkdtempSync(join(tmpdir(), 'biying-noble-'));
+  const noble = await mod.loadNoble(home);
+  const KEY = '0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d';
+  const addr = await mod.addressOf(KEY, noble);
+  assert.equal(addr.checksummed, '0x70997970C51812dc3A010C7d01b50e0d17dc79C8', '地址推导与 viem 一致（EIP-55）');
+  const message = mod.buildSiweMessage({
+    host: 'localhost', origin: 'http://localhost:8787', address: addr.checksummed,
+    chainId: 31337, nonce: 'abc123', issuedAt: '2026-11-12T00:00:00.000Z',
+  });
+  assert.equal(message,
+    'localhost wants you to sign in with your Ethereum account:\n0x70997970C51812dc3A010C7d01b50e0d17dc79C8\n\n'
+    + '登录有求必应（只签名，不发交易、不消耗 Gas）\n\n'
+    + 'URI: http://localhost:8787\nVersion: 1\nChain ID: 31337\nNonce: abc123\nIssued At: 2026-11-12T00:00:00.000Z',
+    'SIWE 消息与服务端 / 网页前端格式一致');
+  const sig = await mod.personalSign(KEY, message, noble);
+  assert.equal(sig,
+    '0x67a2ed1f3d12b17ef78d096dab34ef73962ef52da9aa58dba6101c1c843f2aa16e19af9e878b4d454a2cf1a210d68f4bf2f1d443c9be074f9226ed7f90f37c131c',
+    'EIP-191 签名与 viem signMessage 一致（RFC6979 确定性）');
+});
+
 test('晨钟使用北京时间 00:00 日界和 nextOpenAt，不错误等待到 08:00', () => {
   const content = `${read('skills/biying/references/contracts.md')}\n${read('skills/biying/references/workflows.md')}`;
   assert.match(content, /nextOpenAt/);
@@ -107,11 +148,16 @@ test('Skill 不把卦象 UUID 描述成服务端访问控制凭证', () => {
   assert.doesNotMatch(workflows, /占卜详情只允许本人登录后查看/);
 });
 
-test('没有安装 MCP 时仍可使用只读 REST 降级路径', () => {
+test('只读能力以 REST + SIWE 登录为主路径，不再依赖 MCP', () => {
   const workflows = read('skills/biying/references/workflows.md');
-  assert.match(workflows, /MCP 不可用/);
+  const skill = read('skills/biying/SKILL.md');
+  assert.match(workflows, /scripts\/youqiu\.mjs/);
+  assert.match(workflows, /Authorization: Bearer/);
   for (const endpoint of ['/v1/ask', '/v1/read', '/v1/hours', '/v1/board']) {
-    assert.ok(workflows.includes(endpoint), `缺少降级接口：${endpoint}`);
+    assert.ok(workflows.includes(endpoint), `缺少只读接口：${endpoint}`);
+  }
+  for (const doc of [skill, workflows, read('skills/biying/references/wallet-login.md')]) {
+    assert.doesNotMatch(doc, /read_fortune|ask_gua|lucky_hours|merit_board|\/mcp/, 'MCP 已下线，不得再引导使用');
   }
 });
 

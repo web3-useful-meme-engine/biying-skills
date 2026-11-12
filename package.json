@@ -1,11 +1,15 @@
 {
   "name": "biying-skills",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "description": "Binance Agentic Wallet skill for Biying",
   "type": "module",
   "scripts": {
     "test": "node --test test/*.test.mjs"
+  },
+  "dependencies": {
+    "@noble/curves": "1.9.1",
+    "@noble/hashes": "1.8.0"
   },
   "engines": {
     "node": ">=22.20.0"
