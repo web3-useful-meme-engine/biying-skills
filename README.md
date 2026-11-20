@@ -20,13 +20,20 @@ node $SKILL config                        # chainId、合约地址、费率
 node $SKILL login                         # 本地 Agent 身份钥登录（首次自动生成）
 node $SKILL login-message --address 0x..  # 或：宿主钱包签名登录（真实用户地址）
 node $SKILL read 0x..                     # 测一测（未缓存首查须先 login）
+node $SKILL deep 0x..                     # 测一测 AI 深读 prepare（返回 ref/amount，链上 readDeep 付费）
+node $SKILL deep-status <id>              # 深读结果轮询
+node $SKILL tarot-session 今天的事业运    # 塔罗会话发牌（每日 10 次）
+node $SKILL tarot-pick <sessionId> 3,17,42   # 从 78 个牌位选 3 张
+node $SKILL tarot-reveal <sessionId>      # 揭示 过去/现在/未来
+node $SKILL tarot-prepare <sessionId>     # 塔罗 AI 解读 prepare（链上 tarotReading 付费）
+node $SKILL tarot-status <id>             # 解读结果轮询
 node $SKILL ask buy 0x..                  # 快卦
 node $SKILL hours --window 24             # 吉时
 node $SKILL board                         # 功德榜
 node $SKILL me                            # 我的记录（须登录）
 ```
 
-环境变量：`YOUQIU_API`（默认 `https://youqiu.xyz`，本地联调设为 `http://localhost:8787`）、`BIYING_HOME`（默认 `~/.biying`，存身份钥与会话，0600）。签名依赖 `@noble/*` 缺失时脚本会自动装入 `BIYING_HOME`。
+环境变量：`YOUQIU_API`（默认 `https://shunli.space`，本地联调设为 `http://localhost:8787`）、`BIYING_HOME`（默认 `~/.biying`，存身份钥与会话，0600）。签名依赖 `@noble/*` 缺失时脚本会自动装入 `BIYING_HOME`。
 
 ## 使用示例
 

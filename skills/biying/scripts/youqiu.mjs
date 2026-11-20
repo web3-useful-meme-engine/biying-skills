@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // 有求必应 CLI：Agent 以「正常登录用户」身份调用 REST 接口（SIWE 签名登录 → JWT）。
 // 与网页用户同路径、同额度；不再依赖 MCP。用法见 HELP。
-// 环境变量：YOUQIU_API（默认 https://youqiu.xyz）、BIYING_HOME（默认 ~/.biying）
+// 环境变量：YOUQIU_API（默认 https://shunli.space）、BIYING_HOME（默认 ~/.biying）
 import { spawnSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -27,6 +27,13 @@ const HELP = `有求必应 CLI（Agent 用，REST + SIWE 登录）
                                           快卦（每日免费额度以 free_left 为准）
   hours [--window 1-48] [--purpose launch|buy]   查询吉时（北京时间）
   board [--address 0x..]                  功德榜/晨钟/个人排名
+  deep <address> [--force]                测一测 AI 深读 prepare（须登录；返回 ref/amount，链上 readDeep 付费）
+  deep-status <id>                        查深读结果（轮询到 done）
+  tarot-session <问题文本>                塔罗会话发牌（须登录；每日 10 次）
+  tarot-pick <sessionId> <i,j,k>          从 78 个牌位选 3 张（互不相同，0..77）
+  tarot-reveal <sessionId> [0|1|2]        揭示牌面 过去/现在/未来（缺省全部）
+  tarot-prepare <sessionId> [--force]     塔罗 AI 解读 prepare（返回 ref/amount，链上 tarotReading 付费）
+  tarot-status <id>                       查塔罗解读结果
   logout                                  删除本地会话（不撤销链上授权）
 
 登录身份：宿主有钱包签名能力时优先 login-message → 宿主签名 → login --sig（用户真实地址）；
@@ -101,7 +108,7 @@ export async function personalSign(privHex, message, noble) {
 }
 
 // ---------------- 会话与 HTTP
-const API = (process.env.YOUQIU_API ?? 'https://youqiu.xyz').replace(/\/+$/, '');
+const API = (process.env.YOUQIU_API ?? 'https://shunli.space').replace(/\/+$/, '');
 const HOME = process.env.BIYING_HOME && isAbsolute(process.env.BIYING_HOME) ? process.env.BIYING_HOME : join(homedir(), '.biying');
 const identityFile = join(HOME, 'identity.json');
 const sessionFile = join(HOME, 'session.json');
@@ -253,6 +260,67 @@ const commands = {
     if (r.status !== 200) throw new Error(`HTTP ${r.status} ${r.json.error?.message ?? ''}`.trim());
     return r.json;
   },
+  async deep(args) {
+    const address = args._[0];
+    if (!/^0x[0-9a-fA-F]{40}$/.test(address ?? '')) throw new Error('用法：deep <address>（0x 开头 40 位十六进制；须先 login）');
+    const body = { address };
+    if (args['--force']) body.force = true;
+    const r = await authedCall('POST', '/v1/read/deep/prepare', { body });
+    if (r.status !== 200) throw new Error(`HTTP ${r.status} ${r.json.error?.code ?? ''} ${r.json.error?.message ?? ''}`.trim());
+    return r.json; // {id, ref, kind, entry:'readDeep', amount, contract} → 按 references/contracts.md 链上付费
+  },
+  async deepStatus(args) {
+    const id = args._[0];
+    if (!/^[0-9a-f-]{36}$/.test(id ?? '')) throw new Error('用法：deep-status <id>（deep 返回的 id）');
+    const r = await call('GET', `/v1/read/deep/${id}`);
+    if (r.status !== 200) throw new Error(`HTTP ${r.status} ${r.json.error?.message ?? ''}`.trim());
+    return r.json;
+  },
+  async tarotSession(args) {
+    const question = args._.join(' ').trim();
+    if (!question) throw new Error('用法：tarot-session <问题文本>（≤200 字；须先 login；每日 10 次）');
+    const r = await authedCall('POST', '/v1/tarot/session', { body: { question } });
+    if (r.status !== 200) throw new Error(`HTTP ${r.status} ${r.json.error?.code ?? ''} ${r.json.error?.message ?? ''}`.trim());
+    return r.json;
+  },
+  async tarotPick(args) {
+    const id = args._[0];
+    const picks = String(args._[1] ?? '').split(',').map((s) => Number(s.trim()));
+    if (!/^[0-9a-f-]{36}$/.test(id ?? '') || picks.length !== 3 || new Set(picks).size !== 3 || picks.some((n) => !Number.isInteger(n) || n < 0 || n > 77))
+      throw new Error('用法：tarot-pick <sessionId> <i,j,k>（三个互不相同的牌位，0..77）');
+    const r = await authedCall('POST', `/v1/tarot/session/${id}/pick`, { body: { picks } });
+    if (r.status !== 200) throw new Error(`HTTP ${r.status} ${r.json.error?.code ?? ''} ${r.json.error?.message ?? ''}`.trim());
+    return r.json;
+  },
+  async tarotReveal(args) {
+    const id = args._[0];
+    const idx = args._.length > 1 ? [Number(args._[1])] : [0, 1, 2];
+    if (!/^[0-9a-f-]{36}$/.test(id ?? '') || idx.some((i) => !Number.isInteger(i) || i < 0 || i > 2))
+      throw new Error('用法：tarot-reveal <sessionId> [0|1|2]（阵位 过去/现在/未来；缺省揭示全部）');
+    const out = [];
+    for (const i of idx) {
+      const r = await authedCall('GET', `/v1/tarot/session/${id}/reveal/${i}`);
+      if (r.status !== 200) throw new Error(`HTTP ${r.status} ${r.json.error?.code ?? ''} ${r.json.error?.message ?? ''}`.trim());
+      out.push(r.json);
+    }
+    return out.length === 1 ? out[0] : out;
+  },
+  async tarotPrepare(args) {
+    const sessionId = args._[0];
+    if (!/^[0-9a-f-]{36}$/.test(sessionId ?? '')) throw new Error('用法：tarot-prepare <sessionId>（先 tarot-session + tarot-pick 完成抽牌）');
+    const body = { sessionId };
+    if (args['--force']) body.force = true;
+    const r = await authedCall('POST', '/v1/tarot/prepare', { body });
+    if (r.status !== 200) throw new Error(`HTTP ${r.status} ${r.json.error?.code ?? ''} ${r.json.error?.message ?? ''}`.trim());
+    return r.json; // {id, ref, kind, entry:'tarotReading', amount, contract} → 按 references/contracts.md 链上付费
+  },
+  async tarotStatus(args) {
+    const id = args._[0];
+    if (!/^[0-9a-f-]{36}$/.test(id ?? '')) throw new Error('用法：tarot-status <id>（tarot-prepare 返回的 id）');
+    const r = await call('GET', `/v1/tarot/${id}`);
+    if (r.status !== 200) throw new Error(`HTTP ${r.status} ${r.json.error?.message ?? ''}`.trim());
+    return r.json;
+  },
   logout() {
     rmSync(sessionFile, { force: true });
     return { ok: true, note: '本地会话已删除（不撤销链上授权）' };
@@ -262,13 +330,16 @@ const commands = {
 async function main() {
   const [cmd, ...rest] = process.argv.slice(2);
   if (!cmd || cmd === 'help' || cmd === '--help') { console.log(HELP); return; }
-  if (!commands[cmd]) throw new Error(`未知命令：${cmd}（help 查看用法）`);
+  // HELP 宣传连字符形式（tarot-session / login-message / deep-status），命令键为 camelCase：统一归一化
+  const camel = (s) => s.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
+  const fn = commands[cmd] ?? commands[camel(cmd)];
+  if (!fn) throw new Error(`未知命令：${cmd}（help 查看用法）`);
   const args = { _: [] };
   for (let i = 0; i < rest.length; i++) {
     if (rest[i].startsWith('--')) args[rest[i]] = (rest[i + 1] ?? '').startsWith('--') || i + 1 === rest.length ? true : rest[++i];
     else args._.push(rest[i]);
   }
-  const result = await commands[cmd](args);
+  const result = await fn(args);
   console.log(JSON.stringify(result, null, 2));
 }
 

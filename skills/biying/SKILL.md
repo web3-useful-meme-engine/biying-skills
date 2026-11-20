@@ -7,7 +7,7 @@ description: Use when a Binance Agentic Wallet user asks about 有求必应, 必
 
 ## Overview
 
-在 Binance Agentic Wallet 中使用有求必应。官方 API 与入口为 `https://youqiu.xyz`。Agent 通过 `scripts/youqiu.mjs` 以**正常登录用户**身份调用 REST 接口（SIWE 签名登录 → JWT），与网页用户同路径、同额度，没有 MCP 或特殊通道；签到、上香、付费问卦、功德、佛像和发射仍由 Agent 直接构造合约调用，并在用户 Agent 控制的钱包中请求交易签名，不跳转网页确认交易。
+在 Binance Agentic Wallet 中使用有求必应。官方 API 与入口为 `https://shunli.space`。Agent 通过 `scripts/youqiu.mjs` 以**正常登录用户**身份调用 REST 接口（SIWE 签名登录 → JWT），与网页用户同路径、同额度，没有 MCP 或特殊通道；签到、上香、付费问卦、功德、佛像和发射仍由 Agent 直接构造合约调用，并在用户 Agent 控制的钱包中请求交易签名，不跳转网页确认交易。
 
 ## 先判断操作类型
 
@@ -15,6 +15,8 @@ description: Use when a Binance Agentic Wallet user asks about 有求必应, 必
 |---|---|
 | 问买入、卖出、发射或交易类事项 | `youqiu.mjs ask`（快卦）；深度卦见 workflows |
 | 测钱包、测代币、查看合盘 | 先 `login` 再 `youqiu.mjs read` |
+| 给已测过的地址要 AI 深度解析 | `youqiu.mjs deep <address>`（prepare）→ 链上 `readDeep` 付费 → `deep-status` 轮询 |
+| 塔罗占卜 / 塔 AI 解读 | `tarot-session` → `tarot-pick` → `tarot-reveal`；AI 解读 `tarot-prepare` → 链上 `tarotReading` 付费 → `tarot-status` |
 | 查询未来吉时 | `youqiu.mjs hours` |
 | 查功德池、排名、晨钟状态 | `youqiu.mjs board` |
 | 钱包登录、私密命盘、占卜记录 | 按 `references/wallet-login.md`（`login-message` / `login --sig` / `me`） |
@@ -40,6 +42,6 @@ description: Use when a Binance Agentic Wallet user asks about 有求必应, 必
 4. 按 `references/contracts.md` 构造调用并执行 `simulateContract` 或等价模拟；展示方法、参数、资产和 Gas，取得用户确认。
 5. 用 Agentic Wallet 的 `writeContract` / `eth_sendTransaction` 请求用户签名并提交。
 6. 用 `waitForTransactionReceipt` / `eth_getTransactionReceipt` 查询结果；只有 `status === 'success'` 才报告完成。
-7. 日常操作按“签到 → 清香 → 功德状态”执行，每一步分别确认；高香、深度卦、开光和发射额外提示 LING 销毁或 BNB 费用。
+7. 日常操作按“签到 → 清香 → 功德状态”执行，每一步分别确认；高香、深度卦、塔罗 AI 解读、测一测深读、开光和发射额外提示 LING 销毁或 BNB 费用。
 
 详细命令、业务编排、REST prepare 和链下步骤见 `references/workflows.md`；SIWE 登录细节见 `references/wallet-login.md`。

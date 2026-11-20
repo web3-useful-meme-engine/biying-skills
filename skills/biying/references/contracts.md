@@ -4,7 +4,7 @@
 
 ## 1. 动态配置与执行模板
 
-先请求 `GET https://youqiu.xyz/v1/config`，读取并校验：
+先请求 `GET https://shunli.space/v1/config`，读取并校验：
 
 - `chainId`：钱包和 RPC 必须与此链一致；当前产品使用 BSC，但不要硬编码部署地址。
 - `rpcUrl`：用于读取、模拟和查询回执；RPC 失败时停止，不切换到来源不明的节点。
@@ -39,6 +39,8 @@ if (receipt.status !== 'success') throw new Error('交易已回滚，业务未�
 | 业务 | 合约 | `spender` | `amount` 来源 |
 |---|---|---|---|
 | 高香、深度卦、诚心再问、完整合盘 | `consume` | `contracts.MeritBoard` | 实时 `minAmount(kind)` 或 prepare 返回的 `amount` |
+| 塔罗 AI 解读 | `tarotReading` | `contracts.MeritBoard` | `/v1/tarot/prepare` 返回的 `amount`（`minAmount(8)`） |
+| 测一测 AI 深读 | `readDeep` | `contracts.MeritBoard` | `/v1/read/deep/prepare` 返回的 `amount`（`minAmount(9)`） |
 | 销毁 LING 得功德 | `burnForMerit` | `contracts.MeritBoard` | 用户明确确认的数量 |
 | 佛像开光 | `consecrate` | `contracts.MeritBoard` | 实时 `minAmount(5)` |
 | 请佛像 | `mint` | `contracts.BuddhaNFT` | 发送前实时读取 `priceOf(t)` |
@@ -53,6 +55,8 @@ if (receipt.status !== 'success') throw new Error('交易已回滚，业务未�
 | 高香（含佛像加成） | `contracts.MeritBoard` | `highIncense(uint8 buddhaId, uint256 amount, uint256[] tokenIds)` | `0` |
 | 免费清香 | `contracts.MeritBoard` | `freeIncense(uint8 buddhaId,uint256[] tokenIds)` | `0` |
 | 高香、付费问卦、再问、完整合盘 | `contracts.MeritBoard` | `consume(uint8 kind, uint256 amount, bytes32 ref)` | `0` |
+| 塔罗 AI 解读 | `contracts.MeritBoard` | `tarotReading(uint256 amount, bytes32 ref)` | `0` |
+| 测一测 AI 深读 | `contracts.MeritBoard` | `readDeep(uint256 amount, bytes32 ref)` | `0` |
 | 销毁 LING 得功德 | `contracts.MeritBoard` | `burnForMerit(uint256 amount)` | `0` |
 | 改绑本命佛 | `contracts.MeritBoard` | `rebindBuddha(uint8 buddhaId)` | `0` |
 | 佛像开光 | `contracts.MeritBoard` | `consecrate(uint256 tokenId, uint256 amount)` | `0` |

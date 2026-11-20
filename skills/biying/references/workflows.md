@@ -6,7 +6,7 @@
 
 ## 命令速查（scripts/youqiu.mjs）
 
-环境变量：`YOUQIU_API`（默认 `https://youqiu.xyz`）、`BIYING_HOME`（默认 `~/.biying`）。成功输出 JSON；失败输出 `{ "error": { "code", "message" } }` 并非零退出。
+环境变量：`YOUQIU_API`（默认 `https://shunli.space`）、`BIYING_HOME`（默认 `~/.biying`）。成功输出 JSON；失败输出 `{ "error": { "code", "message" } }` 并非零退出。
 
 | 命令 | 说明 |
 |---|---|
@@ -16,6 +16,9 @@
 | `ask <buy\|sell\|launch\|other> [target] [--period short\|mid\|long] [--topic wealth\|market] [--wallet 0x..]` | `POST /v1/ask` 快卦；不传 `--wallet` 时默认用登录地址 |
 | `hours [--window 1-48] [--purpose launch\|buy]` | `GET /v1/hours` 吉时（北京时间）。**默认 purpose=launch；查买入吉时必须显式 `--purpose buy`**（响应不回显口径，自行记住请求参数） |
 | `board [--address 0x..]` | `GET /v1/board` 功德池、晨钟、前十、个人排名与 ROI 估算 |
+| `deep <address> [--force]` / `deep-status <id>` | 测一测 AI 深读 prepare 与结果轮询；返回 `ref`/`amount` 供链上 `readDeep` 付费（见下文） |
+| `tarot-session <问题>` → `tarot-pick <id> <i,j,k>` → `tarot-reveal <id> [0\|1\|2]` | 塔罗免费抽牌（须登录，每日 10 次）：会话 → 选 3 个牌位 → 揭示 |
+| `tarot-prepare <sessionId> [--force]` / `tarot-status <id>` | 塔罗 AI 解读 prepare 与结果轮询；返回 `ref`/`amount` 供链上 `tarotReading` 付费（见下文） |
 | `me` / `logout` | `GET /v1/me` 私密记录 / 删除本地会话 |
 
 宿主支持 HTTP 但不运行脚本时，可直接调 REST：`POST /v1/ask`（JSON 用 `question`、`target`、`period`、`topic`、`wallet`）、`GET /v1/read?address=<地址>&kind=auto&wallet=<可选>`、`GET /v1/hours?window=24&purpose=launch`、`GET /v1/board?address=<可选钱包>`；须登录的接口带 `Authorization: Bearer <JWT>`。不得假装已经调用。
@@ -62,6 +65,25 @@
 - 基础结果直接 `read`。完整付费合盘需要链上销毁 LING，只读接口不会解锁付费报告。
 
 完整合盘流程：`POST /v1/hepan/prepare`，JSON 为 `{ "token": "<代币地址>", "wallet": "<用户地址>" }`；核对返回的 `contract`、`kind`、`amount`、`ref`，精确授权后调用 `MeritBoard.consume(kind, amount, ref)`。等待成功回执，再按服务端建议间隔查询 `GET /v1/hepan/<ref>`，直到返回 `report`，不把 pending 当成报告完成。
+
+### 测一测 AI 深读（READ_DEEP）
+
+在 `read` 的基础结果上追加 AI 深度解析（命盘事实 + LLM 总结），须登录并销毁 LING（数量以 prepare 返回为准，`/v1/config` 的 `minAmount["9"]` 同源）：
+
+1. `youqiu.mjs deep <address>`（`POST /v1/read/deep/prepare`）。同一请求者对同一地址：已完成 → 返回 `cached: true` 直接回看不再收费；`awaiting_tx` → 返回 `resume: true` 复用同一 `ref` 续付；`--force` 才重新计费（结果稳定，不建议重复付费）。
+2. 核对返回的 `contract` 与 `/v1/config` 的 `MeritBoard` 一致，按 `amount` 精确授权 LING，调用 `MeritBoard.readDeep(amount, ref)`（专用入口，不走 `consume`）。
+3. 回执成功后 `POST /v1/read/deep/<id>/tx`（JSON `{"txHash":"0x.."}`），随后 `youqiu.mjs deep-status <id>` 轮询到 `status: "done"`，向用户转述 `summary` / `reading` 摘要，不全文粘贴。
+4. AI 解析失败可 `POST /v1/read/deep/<id>/retry` 免费重试（服务端校验失败原因），不重复销毁。
+
+### 塔罗占卜（会话抽牌 + 可选 AI 解读）
+
+三张牌（过去/现在/未来）的会话制抽牌**免费**、须登录、每日 10 次；AI 解读须销毁 LING（`minAmount["8"]`）。牌面由服务端洗牌发牌，客户端不能指定抽到什么牌：
+
+1. `youqiu.mjs tarot-session <问题>`（`POST /v1/tarot/session`，≤200 字）拿 `sessionId`。
+2. `youqiu.mjs tarot-pick <sessionId> <i,j,k>`：从 78 个暗牌位选三个互不相同的位置（0..77）。
+3. `youqiu.mjs tarot-reveal <sessionId>`：按 过去/现在/未来 揭示三张牌面（含正逆位）；只看某一阵位用 `tarot-reveal <sessionId> <0|1|2>`。免费流程到此为止，可先向用户转述牌面。
+4. 用户要 AI 解读时 `youqiu.mjs tarot-prepare <sessionId>`：同题同牌已付费 → `cached: true` 回看不收费；`awaiting_tx` → `resume: true` 同 `ref` 续付。核对 `contract`、按 `amount` 精确授权后调用 `MeritBoard.tarotReading(amount, ref)`（专用入口，不走 `consume`）。
+5. 回执成功后 `POST /v1/tarot/<id>/tx`（JSON `{"txHash":"0x.."}`），`youqiu.mjs tarot-status <id>` 轮询到完成；失败可 `POST /v1/tarot/<id>/retry` 免费重试，不重复销毁。
 
 ## 功德箱、晨钟与分红
 
